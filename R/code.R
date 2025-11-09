@@ -4,6 +4,8 @@ library(psych)
 library(vcd)
 library(dplyr)
 library(ggplot2)
+library(car)
+library(effectsize)
 # Read the CSV file
 data <- read.csv("osteoporosis.csv",
                  header = TRUE,
@@ -198,12 +200,104 @@ ggplot(df, aes(x = factor(Osteoporosis), y = Age, fill = factor(Osteoporosis))) 
   ) +
   theme_minimal()
 
+
+data <- read.csv("osteoporosis.csv",
+                 header = TRUE,
+                 sep = ",",
+                 stringsAsFactors = FALSE)
+# === 1️⃣ Chuẩn bị dữ liệu ===
+data$Race.Ethnicity <- as.factor(data$Race.Ethnicity)
+
+cat("=== KIỂM TRA ĐIỀU KIỆN ÁP DỤNG ANOVA ===\n\n")
+
+# --- 2️⃣ Kiểm tra cỡ mẫu ---
+group_counts <- table(data$Race.Ethnicity)
+print(group_counts)
+
+small_groups <- names(group_counts[group_counts < 30])
+
+if (length(small_groups) == 0) {
+  cat("\n✅ Tất cả các nhóm có n ≥ 30.\n")
+  cat("→ Có thể bỏ qua giả định chuẩn tính (theo Định lý giới hạn trung tâm - CLT).\n")
+  normality_ok <- TRUE
+} else {
+  cat("\n⚠️ Có nhóm có n < 30:\n")
+  print(small_groups)
+  cat("→ Cần kiểm tra kỹ giả định chuẩn tính bằng Shapiro–Wilk.\n")
+  normality_ok <- FALSE
+}
+
+# --- 3️⃣ Kiểm định Levene về phương sai đồng nhất ---
+if (!require(car)) install.packages("car", dependencies = TRUE)
+library(car)
+
+levene_res <- leveneTest(Age ~ Race.Ethnicity, data = data, center = "median")
+print(levene_res)
+
+p_levene <- levene_res$`Pr(>F)`[1]
+
+if (p_levene > 0.05) {
+  cat("\n✅ Levene test: p =", round(p_levene, 4), "> 0.05\n")
+  cat("→ Không bác bỏ H0, phương sai giữa các nhóm đồng nhất.\n")
+  var_equal <- TRUE
+} else {
+  cat("\n⚠️ Levene test: p =", round(p_levene, 4), "< 0.05\n")
+  cat("→ Bác bỏ H0, phương sai khác nhau giữa các nhóm.\n")
+  var_equal <- FALSE
+}
+
+# --- 4️⃣ Tổng hợp kết luận về điều kiện ANOVA ---
+cat("\n=== KẾT LUẬN VỀ GIẢ ĐỊNH ANOVA ===\n")
+
+if (normality_ok & var_equal) {
+  cat("✅ Dữ liệu thỏa mãn (hoặc xấp xỉ thỏa mãn) các giả định của ANOVA.\n")
+  cat("→ Có thể tiến hành ANOVA thông thường.\n")
+} else if (var_equal & !normality_ok) {
+  cat("⚠️ Dữ liệu không chuẩn, nhưng các nhóm có cỡ mẫu lớn và phương sai đồng nhất.\n")
+  cat("→ Có thể tiếp tục ANOVA (nhờ CLT), nhưng nên ghi chú trong báo cáo.\n")
+} else if (!var_equal) {
+  cat("⚠️ Phương sai không đồng nhất.\n")
+  cat("→ Nên dùng Welch ANOVA hoặc Kruskal–Wallis test.\n")
+}
+
+if (!require(ggplot2)) install.packages("ggplot2")
+library(ggplot2)
+
+cat("\n=== VẼ BIỂU ĐỒ PHÂN PHỐI TUỔI GIỮA CÁC NHÓM ===\n")
+
+windows()
+ggplot(data, aes(x = Age, fill = Race.Ethnicity)) +
+  geom_histogram(aes(y = ..density..), bins = 25, alpha = 0.6, position = "identity") +
+  geom_density(alpha = 0.7) +
+  facet_wrap(~ Race.Ethnicity, scales = "free_y") +
+  labs(title = "Phân bố tuổi theo từng nhóm chủng tộc",
+       x = "Tuổi",
+       y = "Mật độ (Density)") +
+  theme_minimal(base_size = 13)
+
 # Mô hình ANOVA một nhân tố
 anova_model <- aov(Age ~ Race.Ethnicity, data = data)
 
-# Kết quả ANOVA
-summary(anova_model)
+# Hiển thị kết quả ANOVA
+cat("=== Kết quả kiểm định ANOVA ===\n")
+anova_result <- summary(anova_model)
+print(anova_result)
 
+# Lấy p-value từ kết quả ANOVA
+p_value <- anova_result[[1]][["Pr(>F)"]][1]
+
+# Viết kết luận tự động
+cat("\n=== Kết luận ===\n")
+
+if (p_value < 0.05) {
+  cat(sprintf("Giá trị p = %.3f < 0.05 → Bác bỏ H0.\n", p_value))
+  cat("→ Có sự khác biệt có ý nghĩa thống kê về độ tuổi trung bình giữa các nhóm chủng tộc.\n")
+} else {
+  cat(sprintf("Giá trị p = %.3f ≥ 0.05 → Không đủ bằng chứng để bác bỏ H0.\n", p_value))
+  cat("→ Không có sự khác biệt đáng kể về độ tuổi trung bình giữa các nhóm chủng tộc.\n")
+}
+
+windows()
 ggplot(data, aes(x = Race.Ethnicity, y = Age, fill = Race.Ethnicity)) +
   geom_boxplot(outlier.shape = 21, outlier.fill = "white", notch = TRUE) +
   stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "red") +
