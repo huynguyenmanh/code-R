@@ -130,9 +130,9 @@ if (length(outliers) > 0) {
 }
 
 df <- read.csv("osteoporosis.csv",
-                 header = TRUE,
-                 sep = ",",
-                 stringsAsFactors = FALSE)
+               header = TRUE,
+               sep = ",",
+               stringsAsFactors = FALSE)
 
 
 
@@ -197,3 +197,17 @@ ggplot(df, aes(x = factor(Osteoporosis), y = Age, fill = factor(Osteoporosis))) 
     fill = "Nhóm"
   ) +
   theme_minimal()
+
+# Mô hình ANOVA một nhân tố
+anova_model <- aov(Age ~ Race.Ethnicity, data = data)
+
+# Kết quả ANOVA
+summary(anova_model)
+
+ggplot(data, aes(x = Race.Ethnicity, y = Age, fill = Race.Ethnicity)) +
+  geom_boxplot(outlier.shape = 21, outlier.fill = "white", notch = TRUE) +
+  stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "red") +
+  theme_minimal(base_size = 14) +
+  labs(title = "Phân bố độ tuổi giữa các nhóm chủng tộc",
+       x = "Chủng tộc (Race.Ethnicity)", y = "Tuổi") +
+  scale_fill_brewer(palette = "Pastel1")
