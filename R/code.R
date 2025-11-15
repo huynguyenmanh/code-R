@@ -305,3 +305,79 @@ ggplot(data, aes(x = Race.Ethnicity, y = Age, fill = Race.Ethnicity)) +
   labs(title = "Phân bố độ tuổi giữa các nhóm chủng tộc",
        x = "Chủng tộc (Race.Ethnicity)", y = "Tuổi") +
   scale_fill_brewer(palette = "Pastel1")
+
+
+#CODE HOI QUY LOGISTIC
+#BUOC DAU TIEN ANH XA TUOI LA BIEN DINH LUONG -> BIEN DINH TINH
+#THUONG THI CANG VE GIA TI LE MAC BENH LOANG XUONG CANG CAO
+#NHOM CHON DO TUOI 60 LA DO TUOI SAU DO TI LE BI BENH CAO
+# ===============================
+# Hồi quy logistic với dummy variables
+# ===============================
+library(corrplot)
+library(rstatix)
+library(psych)
+library(vcd)
+library(dplyr)
+library(ggplot2)
+library(car)
+library(effectsize)
+data <- read.csv("osteoporosis_NoID.csv",
+                 header = TRUE,
+                 sep = ",",
+                 stringsAsFactors = FALSE)
+
+View(data)
+
+library(fastDummies)
+
+# Danh sách các biến cần tạo dummy
+categorical_vars <- c("Gender", "Hormonal.Changes", "Family.History", "Race.Ethnicity",
+                      "Body.Weight", "Calcium.Intake", "Vitamin.D.Intake",
+                      "Physical.Activity", "Smoking", "Alcohol.Consumption",
+                      "Medical.Conditions", "Medications", "Prior.Fractures")
+
+# Tạo biến dummy
+data_dummy <- fastDummies::dummy_cols(data,
+                                      select_columns = categorical_vars,
+                                      remove_first_dummy = TRUE,  # loại bỏ cột đầu để tránh đa cộng tuyến
+                                      remove_selected_columns = TRUE)  # loại bỏ cột gốc
+
+# Xem kết quả
+View(data_dummy)
+
+quantitative_vars <- c("Age")
+
+independent_vars <- c(quantitative_vars,
+                      setdiff(colnames(data_dummy), c("Osteoporosis", quantitative_vars)))
+
+# Thêm backticks cho tất cả tên cột
+independent_vars_safe <- paste0("`", independent_vars, "`")
+
+# Tạo công thức
+formula <- as.formula(paste("Osteoporosis ~", paste(independent_vars_safe, collapse = " + ")))
+
+# ============================
+# 6️⃣ Chạy logistic regression
+# ============================
+model <- glm(formula, data = data_dummy, family = binomial)
+
+# ============================
+# 7️⃣ Xem kết quả chi tiết
+# ============================
+summary(model)
+
+# Chọn các biến có ý nghĩa
+selected_vars <- c("Age", "Medications_None")  # thêm biến bạn thấy phù hợp
+
+# Thêm backticks để an toàn với tên cột
+selected_vars_safe <- paste0("`", selected_vars, "`")
+
+# Tạo công thức mới
+formula_selected <- as.formula(paste("Osteoporosis ~", paste(selected_vars_safe, collapse = " + ")))
+
+# Chạy logistic regression với biến đã chọn
+model_selected <- glm(formula_selected, data = data_dummy, family = binomial)
+
+# Xem kết quả
+summary(model_selected)
