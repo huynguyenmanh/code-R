@@ -139,7 +139,7 @@ df <- read.csv("osteoporosis.csv",
 
 
 # Liệt kê các biến định tính (ngoại trừ biến mục tiêu)
-cat_vars <- c("Hormonal.Changes","Gender", "Race.Ethnicity", "Body.Weight", "Calcium.Intake", "Vitamin.D.Intake","Physical.Activity","Smoking","Alcohol.Consumption","Medical.Conditions","Medications","Prior.Fractures")
+cat_vars <- c("Family.History","Hormonal.Changes","Gender", "Race.Ethnicity", "Body.Weight", "Calcium.Intake", "Vitamin.D.Intake","Physical.Activity","Smoking","Alcohol.Consumption","Medical.Conditions","Medications","Prior.Fractures")
 
 
 for (var in cat_vars) {
@@ -381,3 +381,30 @@ model_selected <- glm(formula_selected, data = data_dummy, family = binomial)
 
 # Xem kết quả
 summary(model_selected)
+
+# 1. Thống kê cơ bản
+n  <- length(data$Osteoporosis)
+x  <- sum(data$Osteoporosis == 1)
+p_hat <- x / n
+
+cat("p-hat =", p_hat, "\n")
+
+# 2. Kiểm tra điều kiện xấp xỉ chuẩn
+np <- n * p_hat
+nq <- n * (1 - p_hat)
+
+cat("np =", np, "\n")
+cat("n(1-p) =", nq, "\n")
+
+if (np >= 5 & nq >= 5) {
+  cat("✔ Điều kiện xấp xỉ chuẩn thỏa mãn.\n")
+} else {
+  cat("✘ Điều kiện KHÔNG thỏa mãn → dùng Wilson hoặc Exact.\n")
+}
+
+# 3. Khoảng tin cậy 95% dùng chuẩn (nếu thỏa điều kiện)
+z <- 1.96
+se <- sqrt(p_hat * (1 - p_hat) / n)
+CI <- c(p_hat - z * se, p_hat + z * se)
+
+cat("Khoảng ước lượng 95% (Wald) =", CI, "\n")
